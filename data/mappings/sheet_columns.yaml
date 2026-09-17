@@ -1,0 +1,65 @@
+# How to read each sheet of the source workbook.
+#
+# The nine domain sheets were authored independently and disagree: header rows
+# sit at different depths, column order flips, and names vary. Rather than
+# hard-coding positions, columns are resolved by matching the header cell
+# against the alias lists below (case- and whitespace-insensitive), so a new
+# sheet is usually a config edit rather than a code change.
+
+header_marker: "course title" # the header row is the one containing this
+
+aliases:
+  title:
+    - course title
+  category:
+    - category
+  level:
+    - level
+  hours:
+    - "proposed # of hours"
+    - "proposed no. of hours"
+    - hours
+  curriculum:
+    - proposed curriculum
+    - proposed curriculum (module-wise)
+    - curriculum module by module
+    - curriculum
+  personas:
+    - persona mapping
+    - who should attend
+  status:
+    - status
+  faculty:
+    - faculty
+  track:
+    - track (business / tech)
+    - track
+
+# Rows whose title cell is only a level banner ("DISCOVERY LEVEL",
+# "FLUENCY — 2 courses") are layout, not courses.
+# Leading decoration (◆, 🌿, spacing) precedes the level word on some sheets.
+banner_pattern: '^[^\w]*(discovery|fluency|beginner|intermediate|advanced)\b'
+
+sheets:
+  Summary:
+    skip: true # duplicate of the domain sheets, and less complete
+
+  Fintech Core:
+    domain: FinTech Core
+  AI in Finance:
+    domain: AI in Finance
+  Data Science in Finance:
+    domain: Data Science in Finance
+  Digital Payments:
+    domain: Digital Payments
+  Insurtech:
+    domain: InsurTech
+  Cybersecurity in Finance:
+    domain: Cybersecurity in Finance
+  RegTech:
+    domain: RegTech
+  Blockchain:
+    domain: Blockchain
+  Sustainable Finance:
+    # This sheet has no Category column at all; the domain comes from the name.
+    domain: Sustainable Finance
