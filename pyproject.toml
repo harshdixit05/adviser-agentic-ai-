@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "intellimindz-advisor"
 version = "0.1.0"
@@ -18,6 +22,11 @@ dependencies = [
   "fastapi>=0.115",
   "uvicorn[standard]>=0.30",
 ]
+
+# Without this, setuptools sees `data/` beside `app/` and refuses to guess
+# which top-level directories are packages, so `pip install -e .` fails.
+[tool.setuptools.packages.find]
+include = ["app*", "scripts*"]
 
 [project.optional-dependencies]
 dev = ["pytest", "httpx"]

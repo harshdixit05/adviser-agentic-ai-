@@ -11,7 +11,7 @@ class Settings(BaseSettings):
         env_file=PROJECT_ROOT / ".env.local", extra="ignore"
     )
 
-    database_url: str = "postgresql+psycopg2://postgres@127.0.0.1:55432/advisor"
+    database_url: str = "postgresql+psycopg2://postgres@127.0.0.1:5432/advisor"
 
     # Never committed; read from .env.local or the environment.
     gemini_api_key: str | None = None
