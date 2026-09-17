@@ -156,3 +156,22 @@ single uvicorn worker for now, Redis before scaling out. CORS is an allow-list
 (`ALLOWED_ORIGINS`) with credentials off. Behind a reverse proxy, run uvicorn
 with `--proxy-headers --forwarded-allow-ips=<proxy>`; `X-Forwarded-For` is
 otherwise ignored, since any caller can set it.
+
+## Talking to the website
+
+The Foundation's site (the `Edtech-platform-website-` repo) does not call this
+service from the browser. Its own server proxies chat at `/api/advisor`, which
+keeps this service's URL and token off the client and means no public origin
+needs a CORS grant.
+
+Set the same `ADVISOR_API_TOKEN` on both sides. It does two jobs: it is how this
+service tells the website apart from anyone who found the URL, and it is what
+lets the website send `X-Client-Id` to say which visitor a request belongs to.
+Without that header every request would arrive from the website's single address
+and the per-address limit would become one bucket for the whole site — the first
+busy visitor would lock out everyone else. An unauthenticated caller's
+`X-Client-Id` is ignored, since honouring it would turn the header into a way of
+resetting your own limit.
+
+The id is an HMAC of the visitor's address computed on the website's side, so no
+visitor's IP reaches this service at all.
