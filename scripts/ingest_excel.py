@@ -31,7 +31,13 @@ def main() -> int:
     args = parser.parse_args()
     settings = get_settings()
 
-    report = WorkbookLoader(settings.workbook_path, settings.sheet_mapping_path).load()
+    try:
+        workbook = settings.resolve_workbook()
+    except FileNotFoundError as error:
+        print(f"\n{error}\n", file=sys.stderr)
+        return 1
+
+    report = WorkbookLoader(workbook, settings.sheet_mapping_path).load()
     print(report.render())
 
     if not report.courses:

@@ -46,6 +46,34 @@ class Settings(BaseSettings):
     max_message_chars: int = 2000
 
     workbook_path: Path = PROJECT_ROOT / "data" / "raw" / "courses.xlsx"
+
+    def resolve_workbook(self) -> Path:
+        """
+        The workbook, under whatever name it arrived with.
+
+        Windows hides known extensions, so renaming a download to
+        "courses.xlsx" in Explorer commonly yields courses.xlsx.xlsx. Rather
+        than fail on a name, accept a single spreadsheet sitting in the folder.
+        Ambiguity is still an error: picking one of several silently would be a
+        catalogue built from the wrong file.
+        """
+        if self.workbook_path.exists():
+            return self.workbook_path
+
+        folder = self.workbook_path.parent
+        found = sorted(p for p in folder.glob("*.xlsx") if not p.name.startswith("~$"))
+        if len(found) == 1:
+            return found[0]
+        if len(found) > 1:
+            names = ", ".join(p.name for p in found)
+            raise FileNotFoundError(
+                f"More than one spreadsheet in {folder}: {names}. "
+                "Leave only the course workbook there, or name it courses.xlsx."
+            )
+        raise FileNotFoundError(
+            f"No course workbook found in {folder}. It is deliberately not in "
+            "git — copy the .xlsx into that folder."
+        )
     sheet_mapping_path: Path = PROJECT_ROOT / "data" / "mappings" / "sheet_columns.yaml"
 
 

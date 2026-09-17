@@ -23,7 +23,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 VENV = ROOT / ".venv"
-WORKBOOK = ROOT / "data" / "raw" / "courses.xlsx"
+RAW = ROOT / "data" / "raw"
+WORKBOOK = RAW / "courses.xlsx"
 
 WINDOWS = os.name == "nt"
 # The one platform difference that matters here.
@@ -39,6 +40,37 @@ def fail(message: str) -> None:
     raise SystemExit(1)
 
 
+def spreadsheets() -> list[Path]:
+    """Every workbook in data/raw, ignoring Excel's lock files."""
+    return sorted(p for p in RAW.glob("*.xlsx") if not p.name.startswith("~$"))
+
+
+def find_workbook() -> Path | None:
+    """
+    The workbook, under whatever name it arrived with.
+
+    Windows hides known extensions by default, so renaming a download to
+    "courses.xlsx" in Explorer commonly produces courses.xlsx.xlsx. Insisting
+    on the exact name turns that into a missing-file error the person cannot
+    see the cause of, so a single spreadsheet in the folder is accepted
+    whatever it is called.
+    """
+    if WORKBOOK.exists():
+        return WORKBOOK
+    found = spreadsheets()
+    return found[0] if len(found) == 1 else None
+
+
+def describe_raw_folder() -> str:
+    if not RAW.is_dir():
+        return "  That folder does not exist yet."
+    entries = sorted(p.name for p in RAW.iterdir() if p.name != ".gitkeep")
+    if not entries:
+        return "  That folder is empty."
+    listed = "\n".join(f"    {name}" for name in entries)
+    return f"  That folder currently holds:\n{listed}"
+
+
 def run(*command: str) -> None:
     result = subprocess.run(command)
     if result.returncode != 0:
@@ -52,13 +84,27 @@ def main() -> int:
             "Get a current version from https://www.python.org/downloads/"
         )
 
-    if not WORKBOOK.exists():
+    workbook = find_workbook()
+    if workbook is None:
+        found = spreadsheets()
+        if len(found) > 1:
+            names = "\n".join(f"    {p.name}" for p in found)
+            fail(
+                f"More than one spreadsheet in {RAW}\n\n{names}\n\n"
+                "Leave only the course workbook there, or name it courses.xlsx."
+            )
         fail(
-            f"Missing {WORKBOOK.relative_to(ROOT)}\n\n"
-            "The course workbook is deliberately not in git. Copy it there and\n"
-            "run this again. On Windows you can drag it into data\\raw\\ and\n"
-            "rename it to courses.xlsx."
+            f"Could not find the course workbook. I looked in:\n\n  {RAW}\n\n"
+            f"{describe_raw_folder()}\n\n"
+            "The workbook is deliberately not in git, so copy it into that exact\n"
+            "folder. Any .xlsx there will do — it does not have to be called\n"
+            "courses.xlsx.\n\n"
+            "If you believe you already put it there, check you are in the right\n"
+            "copy of the project: the path above is the only one this run looks at."
         )
+
+    if workbook != WORKBOOK:
+        say(f"Using {workbook.name} as the course workbook")
 
     say("1/4  Creating the virtualenv")
     if not PYTHON.exists():
