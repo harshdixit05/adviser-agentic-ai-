@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from langchain_core.language_models import BaseChatModel
 
-from app.core.config import get_settings
+from app.core.config import PROJECT_ROOT, get_settings
 
 
 class ModelNotConfigured(RuntimeError):
@@ -29,10 +29,20 @@ def build_model() -> BaseChatModel:
 
     settings = get_settings()
     if not settings.gemini_api_key:
+        env_file = PROJECT_ROOT / ".env.local"
+        state = (
+            f"Open this file:\n\n  {env_file}\n\n"
+            'and put the key between the quotes on the GEMINI_API_KEY="" line.'
+            if env_file.exists()
+            else f"That file does not exist yet. Create it by copying .env.example:"
+            f"\n\n  {PROJECT_ROOT / '.env.example'}\n  ->  {env_file}\n\n"
+            'then put the key between the quotes on the GEMINI_API_KEY="" line.'
+        )
         raise ModelNotConfigured(
-            "GEMINI_API_KEY is not set. Put it in .env.local (see .env.example), "
-            "which is gitignored. Never paste a key into a chat, a commit or a log — "
-            "if one has been, rotate it at https://aistudio.google.com/apikey first."
+            f"GEMINI_API_KEY is not set.\n\n{state}\n\n"
+            "Get a key at https://aistudio.google.com/apikey\n\n"
+            ".env.local is gitignored, so it will not be committed. Never paste a "
+            "key into a chat, a commit or a log — if one has been, rotate it first."
         )
 
     return ChatGoogleGenerativeAI(
