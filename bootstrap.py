@@ -46,9 +46,9 @@ def run(*command: str) -> None:
 
 
 def main() -> int:
-    if sys.version_info < (3, 11):
+    if sys.version_info < (3, 10):
         fail(
-            f"Python 3.11 or newer is required; this is {sys.version.split()[0]}.\n"
+            f"Python 3.10 or newer is required; this is {sys.version.split()[0]}.\n"
             "Get a current version from https://www.python.org/downloads/"
         )
 
