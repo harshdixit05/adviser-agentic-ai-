@@ -18,6 +18,7 @@ import sys
 
 from app.agent.conversation import Advisor, Turn
 from app.agent.model import ModelNotConfigured, build_model
+from app.core.console import use_unicode_output
 
 BANNER = """Intellimindz learning advisor — internal harness
 Course facts come from the catalogue database; anything the tools did not
@@ -46,6 +47,7 @@ def _show_grounding(turn: Turn | None) -> None:
 
 
 def main() -> int:
+    use_unicode_output()
     try:
         model = build_model()
     except ModelNotConfigured as error:

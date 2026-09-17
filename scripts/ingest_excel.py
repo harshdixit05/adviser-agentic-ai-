@@ -17,9 +17,11 @@ from app.db.models import Base
 from app.db.session import engine, session_scope
 from app.ingestion.excel.loader import WorkbookLoader
 from app.ingestion.excel.writer import write_catalogue
+from app.core.console import use_unicode_output
 
 
 def main() -> int:
+    use_unicode_output()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--dry-run",

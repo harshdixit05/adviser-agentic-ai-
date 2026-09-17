@@ -44,8 +44,9 @@ a second model asked whether the first one told the truth.
 Put the course workbook at `data/raw/courses.xlsx` first — it is deliberately
 not in git — then:
 
-```bash
-./setup.sh
+```
+python bootstrap.py       # Windows
+python3 bootstrap.py      # macOS / Linux
 ```
 
 That makes the virtualenv, installs, builds the catalogue and runs the tests.
@@ -56,7 +57,8 @@ Postgres for anything deployed and the same ingest produces the same catalogue.
 The long way, if you would rather see each step:
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate         # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 cp .env.example .env.local        # add your GEMINI_API_KEY
 python -m scripts.ingest_excel    # load the workbook
