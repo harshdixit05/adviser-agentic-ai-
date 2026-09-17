@@ -13,8 +13,9 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg2://postgres@127.0.0.1:55432/advisor"
 
-    # Set when the agent is wired up in Phase 3. Never committed.
+    # Never committed; read from .env.local or the environment.
     gemini_api_key: str | None = None
+    gemini_model: str = "gemini-2.0-flash"
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "intellimindz_content"
 
