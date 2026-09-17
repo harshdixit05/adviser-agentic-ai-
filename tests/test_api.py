@@ -242,3 +242,104 @@ class TestCORS:
             "/api/chat", json={"message": "Hi"}, headers={"Origin": "http://localhost:3000"}
         )
         assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+
+
+class TestSharedToken:
+    """
+    The website's server talks to this service with a shared token. Two things
+    follow from holding it: you may ask at all, and you may say who the request
+    is really from.
+    """
+
+    @pytest.fixture
+    def secured(self, monkeypatch):
+        monkeypatch.setattr(api.settings, "api_token", "s3cret-token")
+
+    def test_a_missing_token_is_refused(self, client, secured, monkeypatch):
+        install(monkeypatch, chatty("unused"))
+        response = client.post("/api/chat", json={"message": "Hi"})
+
+        assert response.status_code == 401
+        assert response.headers["WWW-Authenticate"] == "Bearer"
+
+    def test_a_wrong_token_is_refused(self, client, secured, monkeypatch):
+        model = chatty("unused")
+        install(monkeypatch, model)
+        response = client.post(
+            "/api/chat", json={"message": "Hi"}, headers={"Authorization": "Bearer nope"}
+        )
+
+        assert response.status_code == 401
+        assert model.calls == [], "an unauthorised request must not cost a model call"
+
+    def test_the_right_token_is_accepted(self, client, secured, monkeypatch):
+        install(monkeypatch, chatty("Hello."))
+        response = client.post(
+            "/api/chat",
+            json={"message": "Hi"},
+            headers={"Authorization": "Bearer s3cret-token"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["answer"] == "Hello."
+
+    def test_ending_a_conversation_also_needs_it(self, client, secured):
+        assert client.post("/api/chat/anything/end").status_code == 401
+
+    def test_without_a_token_configured_the_service_is_open(self, client, monkeypatch):
+        """The development case: no token set, no Authorization header needed."""
+        monkeypatch.setattr(api.settings, "api_token", None)
+        install(monkeypatch, chatty("Hello."))
+
+        assert client.post("/api/chat", json={"message": "Hi"}).status_code == 200
+
+
+class TestProxiedVisitors:
+    """
+    Proxied through the website, every request arrives from one address. If
+    that address were the rate-limit key, one busy visitor would lock out the
+    whole site.
+    """
+
+    def test_an_authenticated_proxy_can_separate_its_visitors(self, client, monkeypatch):
+        monkeypatch.setattr(api.settings, "api_token", "s3cret-token")
+        monkeypatch.setattr(api, "per_client", RateLimiter(1))
+        install(monkeypatch, chatty("one", "two"))
+
+        auth = {"Authorization": "Bearer s3cret-token"}
+        first = client.post(
+            "/api/chat", json={"message": "1"}, headers={**auth, "X-Client-Id": "visitor-a"}
+        )
+        second = client.post(
+            "/api/chat", json={"message": "2"}, headers={**auth, "X-Client-Id": "visitor-b"}
+        )
+
+        assert first.status_code == 200
+        assert second.status_code == 200, "a second visitor must not inherit the first's usage"
+
+    def test_the_same_visitor_still_hits_the_ceiling(self, client, monkeypatch):
+        monkeypatch.setattr(api.settings, "api_token", "s3cret-token")
+        monkeypatch.setattr(api, "per_client", RateLimiter(1))
+        install(monkeypatch, chatty("one", "two"))
+
+        auth = {"Authorization": "Bearer s3cret-token", "X-Client-Id": "visitor-a"}
+        client.post("/api/chat", json={"message": "1"}, headers=auth)
+        blocked = client.post("/api/chat", json={"message": "2"}, headers=auth)
+
+        assert blocked.status_code == 429
+
+    def test_an_unauthenticated_caller_cannot_claim_an_identity(self, client, monkeypatch):
+        """
+        Otherwise the header is simply a way to reset your own limit, which is
+        worse than having no limit at all — it would look like one.
+        """
+        monkeypatch.setattr(api.settings, "api_token", None)
+        monkeypatch.setattr(api, "per_client", RateLimiter(1))
+        install(monkeypatch, chatty("one", "two"))
+
+        client.post("/api/chat", json={"message": "1"}, headers={"X-Client-Id": "visitor-a"})
+        blocked = client.post(
+            "/api/chat", json={"message": "2"}, headers={"X-Client-Id": "visitor-b"}
+        )
+
+        assert blocked.status_code == 429

@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "intellimindz_content"
 
+    # Shared secret between the website's server and this service. When set,
+    # /api/chat requires it — and only a caller holding it is allowed to say
+    # who the request is really from (see client_key in api/main.py).
+    api_token: str | None = None
+
     # The website is the only intended caller. An empty list means no browser
     # origin is allowed, which is the right default for a service that would
     # otherwise answer anyone's page.

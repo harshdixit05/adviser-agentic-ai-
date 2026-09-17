@@ -13,9 +13,10 @@ Run it with:
 from __future__ import annotations
 
 import logging
+import secrets
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select
 
@@ -52,6 +53,12 @@ async def lifespan(_app: FastAPI):
     except ModelNotConfigured as error:
         log.warning("Starting without a model: %s", error)
         _model = None
+
+    if not settings.api_token:
+        log.warning(
+            "ADVISOR_API_TOKEN is not set: /api/chat is open to any caller that "
+            "is not a browser. Fine locally; set it before deploying."
+        )
     yield
     _model = None
 
@@ -72,20 +79,54 @@ app.add_middleware(
     # an opaque id in the body, so the browser never needs credentialled CORS.
     allow_credentials=False,
     allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "Authorization", "X-Client-Id"],
     max_age=600,
 )
 
 
-def client_key(request: Request) -> str:
+def authenticate(authorization: str | None = Header(default=None)) -> bool:
     """
-    The address to rate-limit by.
+    Returns whether the caller proved it is the website's server.
 
-    X-Forwarded-For is ignored: any caller can set it, so trusting it hands
-    every client an unlimited supply of identities. Behind a reverse proxy,
-    run uvicorn with --proxy-headers and --forwarded-allow-ips set to that
-    proxy, which makes request.client.host the real address.
+    With no token configured the service is open and nobody is authenticated,
+    which is the development case. With one configured it is required, and
+    compared in constant time so a wrong token cannot be narrowed down by
+    timing the response.
     """
+    if not settings.api_token:
+        return False
+
+    scheme, _, presented = (authorization or "").partition(" ")
+    if scheme.lower() != "bearer" or not secrets.compare_digest(
+        presented, settings.api_token
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorised.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return True
+
+
+def client_key(request: Request, trusted: bool, client_id: str | None) -> str:
+    """
+    What to rate-limit by.
+
+    Normally the socket address. X-Forwarded-For is ignored — any caller can
+    set it, and trusting it hands every client an unlimited supply of
+    identities. Behind a reverse proxy, run uvicorn with --proxy-headers and
+    --forwarded-allow-ips set to that proxy.
+
+    The exception is a caller that authenticated with the shared token. When
+    the website proxies chat through its own server, every request arrives
+    from one address and the per-address limit would become a single bucket
+    for the entire site — one busy visitor would lock out everyone else. An
+    authenticated proxy may therefore say who the request is really from, and
+    it sends an opaque per-visitor id rather than an address, so no visitor's
+    IP is handled here at all.
+    """
+    if trusted and client_id:
+        return f"via-proxy:{client_id[:128]}"
     return request.client.host if request.client else "unknown"
 
 
@@ -112,8 +153,14 @@ def health() -> HealthResponse:
 
 
 @app.post("/api/chat", response_model=ChatResponse)
-def chat(payload: ChatRequest, request: Request, model=Depends(require_model)) -> ChatResponse:
-    address = client_key(request)
+def chat(
+    payload: ChatRequest,
+    request: Request,
+    model=Depends(require_model),
+    trusted: bool = Depends(authenticate),
+    x_client_id: str | None = Header(default=None),
+) -> ChatResponse:
+    address = client_key(request, trusted, x_client_id)
     if not per_client.check(address):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -150,6 +197,6 @@ def chat(payload: ChatRequest, request: Request, model=Depends(require_model)) -
 
 
 @app.post("/api/chat/{session_id}/end", status_code=status.HTTP_204_NO_CONTENT)
-def end(session_id: str) -> None:
+def end(session_id: str, _trusted: bool = Depends(authenticate)) -> None:
     """Lets the widget drop a conversation when the learner closes it."""
     sessions.forget(session_id)
