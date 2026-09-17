@@ -15,10 +15,12 @@ dependencies = [
   "langgraph>=1.0",
   "langchain-core>=1.0",
   "langchain-google-genai>=4.0",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "httpx"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

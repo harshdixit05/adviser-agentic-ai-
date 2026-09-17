@@ -19,6 +19,22 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "intellimindz_content"
 
+    # The website is the only intended caller. An empty list means no browser
+    # origin is allowed, which is the right default for a service that would
+    # otherwise answer anyone's page.
+    allowed_origins: list[str] = ["http://localhost:3000"]
+
+    # A conversation is held in memory, so both of these are really memory
+    # limits as much as product decisions.
+    session_ttl_minutes: int = 60
+    max_sessions: int = 2000
+
+    # Per conversation, then per client address. The second one is what stops
+    # a single caller opening a thousand conversations to get around the first.
+    messages_per_session_per_hour: int = 60
+    messages_per_ip_per_hour: int = 120
+    max_message_chars: int = 2000
+
     workbook_path: Path = PROJECT_ROOT / "data" / "raw" / "courses.xlsx"
     sheet_mapping_path: Path = PROJECT_ROOT / "data" / "mappings" / "sheet_columns.yaml"
 
