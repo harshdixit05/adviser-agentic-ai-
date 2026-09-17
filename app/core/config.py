@@ -11,7 +11,9 @@ class Settings(BaseSettings):
         env_file=PROJECT_ROOT / ".env.local", extra="ignore"
     )
 
-    database_url: str = "postgresql+psycopg2://postgres@127.0.0.1:5432/advisor"
+    # A file, so trying this out needs no database server. The schema is
+    # dialect-agnostic; point this at Postgres for anything deployed.
+    database_url: str = f"sqlite:///{PROJECT_ROOT / 'data' / 'advisor.db'}"
 
     # Never committed; read from .env.local or the environment.
     gemini_api_key: str | None = None

@@ -41,23 +41,39 @@ a second model asked whether the first one told the truth.
 
 ## Setup
 
+Put the course workbook at `data/raw/courses.xlsx` first — it is deliberately
+not in git — then:
+
+```bash
+./setup.sh
+```
+
+That makes the virtualenv, installs, builds the catalogue and runs the tests.
+No database server is needed: with no `DATABASE_URL` set, the catalogue lives in
+`data/advisor.db`. The schema is dialect-agnostic, so point `DATABASE_URL` at
+Postgres for anything deployed and the same ingest produces the same catalogue.
+
+The long way, if you would rather see each step:
+
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-cp .env.example .env.local        # set DATABASE_URL
-createdb advisor
-
+cp .env.example .env.local        # add your GEMINI_API_KEY
 python -m scripts.ingest_excel    # load the workbook
 pytest
 ```
 
-Then either talk to it in a terminal:
+Then talk to it in a terminal:
 
 ```bash
 python -m scripts.chat            # /profile, /why, /reset, /quit
 ```
 
-or run the service:
+Ask it something, then type `/why`: that prints the exact catalogue rows the
+answer was checked against, which is the quickest way to see the grounding gate
+doing its job.
+
+Or run the service:
 
 ```bash
 uvicorn app.api.main:app --reload
@@ -69,9 +85,8 @@ exits; the service starts anyway, reports `degraded` on `/health` and returns
 503 from `/api/chat`, so a deployment missing its key is diagnosable rather than
 dead.
 
-Put the source workbook at `data/raw/courses.xlsx`. Re-running the ingest
-replaces the catalogue, so it is the single command to run after any spreadsheet
-change.
+Re-running the ingest replaces the catalogue, so it is the single command to run
+after any spreadsheet change.
 
 ## Ingestion
 

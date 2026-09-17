@@ -45,7 +45,7 @@ def main() -> int:
     with session_scope() as session:
         counts = write_catalogue(session, report.courses)
 
-    print("  Written to Postgres:")
+    print("  Written to the catalogue:")
     for label, value in counts.items():
         print(f"    {label:<20} {value:>5}")
     print()

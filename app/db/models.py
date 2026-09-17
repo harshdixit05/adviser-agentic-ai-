@@ -24,10 +24,15 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Uuid,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+# SQLite only auto-increments a plain INTEGER PRIMARY KEY: a SMALLINT one is
+# not a rowid alias, so inserts fail on a NULL id. The variant keeps the
+# narrower Postgres column while letting a local file-backed run work.
+SmallKey = SmallInteger().with_variant(Integer(), "sqlite")
 
 
 class Base(DeclarativeBase):
@@ -83,7 +88,7 @@ status_enum = Enum(
 class Domain(Base):
     __tablename__ = "domains"
 
-    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(SmallKey, primary_key=True, autoincrement=True)
     slug: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
 
@@ -94,7 +99,7 @@ class Course(Base):
     __tablename__ = "courses"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+        Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     slug: Mapped[str] = mapped_column(String(160), unique=True, nullable=False)
     title: Mapped[str] = mapped_column(Text, nullable=False)
@@ -130,7 +135,7 @@ class Module(Base):
     __table_args__ = (UniqueConstraint("course_id", "position"),)
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+        Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     course_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("courses.id", ondelete="CASCADE"), nullable=False
@@ -151,7 +156,7 @@ class Persona(Base):
 
     __tablename__ = "personas"
 
-    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(SmallKey, primary_key=True, autoincrement=True)
     slug: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
     label: Mapped[str] = mapped_column(String(120), nullable=False)
 
@@ -195,7 +200,7 @@ class LearningOutcome(Base):
     __tablename__ = "learning_outcomes"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+        Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     course_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("courses.id", ondelete="CASCADE"), nullable=False
